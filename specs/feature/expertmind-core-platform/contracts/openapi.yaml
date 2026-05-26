@@ -1,0 +1,130 @@
+openapi: 3.0.3
+info:
+  title: ExpertMind Core Platform API
+  description: API for real-time multimodal interaction, session summarization, agent orchestration, and PDF report generation.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+paths:
+  /ws:
+    get:
+      summary: WebSocket endpoint for real-time interaction.
+      description: Establishes a bidirectional stream for audio, video, and text.
+      responses:
+        '101':
+          description: Switching Protocols to WebSocket.
+  /api/summarize:
+    post:
+      summary: Summarize a completed session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SummarizeRequest'
+      responses:
+        '200':
+          description: Session successfully summarized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SummarizeResponse'
+        '400':
+          description: Invalid request.
+  /api/orchestrate:
+    post:
+      summary: Trigger specialist agent orchestration via LangGraph.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrchestrateRequest'
+      responses:
+        '200':
+          description: Orchestration initiated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchestrateResponse'
+        '404':
+          description: Session not found.
+  /api/generate-pdf:
+    post:
+      summary: Generate a professional PDF report.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratePDFRequest'
+      responses:
+        '200':
+          description: PDF successfully generated and uploaded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratePDFResponse'
+        '500':
+          description: PDF generation failed.
+
+components:
+  schemas:
+    SummarizeRequest:
+      type: object
+      required:
+        - session_transcript
+        - session_duration
+        - user_id
+      properties:
+        session_transcript:
+          type: string
+          description: Full text transcript of the session.
+        session_duration:
+          type: integer
+          description: Duration of the session in seconds.
+        user_id:
+          type: string
+          format: uuid
+    SummarizeResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: summarized
+    OrchestrateRequest:
+      type: object
+      required:
+        - session_id
+      properties:
+        session_id:
+          type: string
+          format: uuid
+    OrchestrateResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: orchestrated
+    GeneratePDFRequest:
+      type: object
+      required:
+        - state
+      properties:
+        state:
+          type: object
+          description: Final LangGraph state dictionary.
+    GeneratePDFResponse:
+      type: object
+      properties:
+        pdf_url:
+          type: string
+          format: uri
+          description: URL to the generated PDF report.

@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+google-genai
+websockets
+python-dotenv
+python-multipart
+langgraph
+psycopg2-binary
+pydantic
+weasyprint
+jinja2
+httpx
+sqlmodel
+alembic
