@@ -50,6 +50,8 @@ const LiveSession: React.FC = () => {
         setMessages((prev) => [...prev, { type: 'user', text: message.text }]);
       } else if (message.type === 'error') {
         setMessages((prev) => [...prev, { type: 'error', text: message.error }]);
+      } else if (message.type === 'interrupted') {
+        mediaHandler.current.stopAudioPlayback();
       }
     });
     geminiClient.current.sendSettings(settings);
