@@ -18,7 +18,7 @@ const LiveSession: React.FC = () => {
   const [textInput, setTextInput] = useState('');
   const [settings, setSettings] = useState<SessionSettings>({
     voice: 'Puck',
-    systemPrompt: 'آپ ایک دوستانہ اور مددگار AI کنسلٹنٹ ہیں۔ براہ کرم صرف اردو میں بات کریں۔',
+    systemPrompt: 'آپ ایک دوستانہ اور مددگار AI کنسلٹنٹ ہیں۔ صرف اردو میں بات کریں اور جواب دیں۔ صارف ہندی، اردو، یا کسی بھی دوسری زبان میں بات کر سکتا ہے — آپ کا کام صرف اردو رسم الخط میں جواب دینا اور ریکارڈ رکھنا ہے۔',
   });
 
   useEffect(() => {
