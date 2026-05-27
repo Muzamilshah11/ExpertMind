@@ -187,7 +187,7 @@ const LiveSession: React.FC = () => {
           onChange={(e) => setTextInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSendText(); }}
           placeholder="یہاں اپنا سوال لکھیں..."
-          className="flex-1 px-4 py-2.5 rounded-lg bg-slate-700 text-white placeholder-slate-400 border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
+          className="flex-1 px-4 py-2.5 rounded-lg bg-slate-700 text-white placeholder-slate-400 border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40 font-urdu"
           disabled={!isConnected}
         />
         <button onClick={handleSendText} disabled={!isConnected} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-all disabled:opacity-40">
@@ -197,25 +197,25 @@ const LiveSession: React.FC = () => {
 
       <div className="w-full max-w-md h-80 overflow-y-auto bg-slate-800 rounded-xl p-4 space-y-3 border border-slate-700 shadow-lg">
         {messages.length === 0 && (
-          <p className="text-slate-400 text-center">پیغامات یہاں ظاہر ہوں گے...</p>
+          <p className="text-slate-400 text-center font-urdu">پیغامات یہاں ظاہر ہوں گے...</p>
         )}
         {messages.map((msg, i) => {
           if (msg.type === 'gemini') return (
             <div key={i} className="bg-slate-700/50 rounded-lg p-3">
               <span className="text-emerald-400 font-semibold text-sm">AI</span>
-              <p className="text-white mt-1">{msg.text}</p>
+              <p className="text-white mt-1 font-urdu leading-relaxed">{msg.text}</p>
             </div>
           );
           if (msg.type === 'user') return (
             <div key={i} className="bg-blue-900/30 rounded-lg p-3 border-l-4 border-blue-500">
-              <span className="text-blue-300 font-semibold text-sm">آپ</span>
-              <p className="text-white mt-1">{msg.text}</p>
+              <span className="text-blue-300 font-semibold text-sm font-urdu">آپ</span>
+              <p className="text-white mt-1 font-urdu leading-relaxed">{msg.text}</p>
             </div>
           );
           if (msg.type === 'error') return (
             <div key={i} className="bg-red-900/30 rounded-lg p-3 border-l-4 border-red-500">
               <span className="text-red-400 font-semibold text-sm">Error</span>
-              <p className="text-red-200 mt-1">{msg.text}</p>
+              <p className="text-red-200 mt-1 font-urdu leading-relaxed">{msg.text}</p>
             </div>
           );
           return null;
@@ -227,7 +227,7 @@ const LiveSession: React.FC = () => {
           <div className="bg-slate-800 p-6 rounded-xl w-full max-w-md border border-slate-600 shadow-2xl">
             <h2 className="text-xl font-bold text-white mb-4">Settings</h2>
             <label className="block text-sm text-slate-300 mb-1">System Prompt</label>
-            <textarea value={settings.systemPrompt} onChange={e => setSettings({...settings, systemPrompt: e.target.value})} className="w-full p-2 rounded bg-slate-700 text-white border border-slate-600 mb-4 h-24" />
+            <textarea value={settings.systemPrompt} onChange={e => setSettings({...settings, systemPrompt: e.target.value})} className="w-full p-2 rounded bg-slate-700 text-white border border-slate-600 mb-4 h-24 font-urdu" />
             <label className="block text-sm text-slate-300 mb-1">Voice</label>
             <select value={settings.voice} onChange={e => setSettings({...settings, voice: e.target.value})} className="w-full p-2 rounded bg-slate-700 text-white border border-slate-600 mb-4">
               <option value="Puck">Puck</option>
