@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { GeminiClient, SessionSettings } from '../lib/gemini-client';
 import { MediaHandler } from '../lib/media-handler';
 
-export const LiveSession: React.FC = () => {
+const LiveSession: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaHandler = useRef(new MediaHandler());
   const geminiClient = useRef(new GeminiClient());
@@ -13,9 +13,10 @@ export const LiveSession: React.FC = () => {
   const [messages, setMessages] = useState<string[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
+  const [textInput, setTextInput] = useState('');
   const [settings, setSettings] = useState<SessionSettings>({
     voice: 'Puck',
-    systemPrompt: 'You are a helpful AI consultant.',
+    systemPrompt: 'آپ ایک دوستانہ اور مددگار AI کنسلٹنٹ ہیں۔ براہ کرم صرف اردو میں بات کریں۔',
   });
 
   useEffect(() => {
@@ -23,7 +24,6 @@ export const LiveSession: React.FC = () => {
     if (savedSettings) setSettings(JSON.parse(savedSettings));
 
     return () => {
-      // Cleanup
       mediaHandler.current.stopAudio();
       mediaHandler.current.stopVideo(videoRef.current);
       geminiClient.current.disconnect();
@@ -38,7 +38,7 @@ export const LiveSession: React.FC = () => {
 
   const handleConnect = async () => {
     await mediaHandler.current.initializeAudio();
-    geminiClient.current.connect((message) => {
+    await geminiClient.current.connect((message) => {
       if (message.type === 'audio') {
         mediaHandler.current.playAudio(new Uint8Array(message.data).buffer);
       } else {
@@ -47,6 +47,10 @@ export const LiveSession: React.FC = () => {
     });
     geminiClient.current.sendSettings(settings);
     setIsConnected(true);
+    await mediaHandler.current.startAudio((data) => {
+      geminiClient.current.sendAudio(data);
+    });
+    setIsRecording(true);
   };
 
   const handleToggleRecording = async () => {
@@ -74,25 +78,31 @@ export const LiveSession: React.FC = () => {
   };
 
   const handleSummarize = async () => {
-    // Assuming messages contains transcript data
     const transcript = messages.join('\n');
     const response = await fetch('/api/summarize', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             session_transcript: transcript,
-            session_duration: 0, // Placeholder
-            user_id: '00000000-0000-0000-0000-000000000000' // Placeholder
+            session_duration: 0,
+            user_id: '00000000-0000-0000-0000-000000000000'
         })
     });
     const data = await response.json();
     setMessages((prev) => [...prev, `Session summarized: ${data.session_id}`]);
   };
 
+  const handleSendText = () => {
+    if (!textInput.trim() || !isConnected) return;
+    geminiClient.current.sendText(textInput);
+    setMessages((prev) => [...prev, `You: ${textInput}`]);
+    setTextInput('');
+  };
+
   return (
     <div className="flex flex-col items-center p-4 space-y-4">
       <h1 className="text-2xl font-bold">Live Session</h1>
-      
+
       <video ref={videoRef} autoPlay playsInline muted className="w-64 h-48 bg-gray-200" />
 
       <div className="flex space-x-2">
@@ -110,6 +120,21 @@ export const LiveSession: React.FC = () => {
         </button>
         <button onClick={handleSummarize} className="p-2 bg-red-500 text-white rounded">
           Summarize
+        </button>
+      </div>
+
+      <div className="flex w-full max-w-md space-x-2">
+        <input
+          type="text"
+          value={textInput}
+          onChange={(e) => setTextInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleSendText(); }}
+          placeholder="Type your question here..."
+          className="flex-1 p-2 border rounded text-black"
+          disabled={!isConnected}
+        />
+        <button onClick={handleSendText} disabled={!isConnected} className="p-2 bg-blue-500 text-white rounded">
+          Send
         </button>
       </div>
 
@@ -136,3 +161,5 @@ export const LiveSession: React.FC = () => {
     </div>
   );
 };
+
+export default LiveSession;

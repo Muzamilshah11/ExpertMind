@@ -25,13 +25,13 @@ class GeminiLive:
             system_instruction (str, optional): Custom system instruction. Defaults to None.
         """
         self.api_key = api_key
-        self.model = model
+        self.model = model or "gemini-3.1-flash-live-preview"
         self.input_sample_rate = input_sample_rate
         self.client = genai.Client(api_key=api_key)
         self.tools = tools or []
         self.tool_mapping = tool_mapping or {}
         self.voice_name = voice_name
-        self.system_instruction = system_instruction or "You are a helpful AI assistant. Keep your responses concise. Speak in a friendly Irish accent. You can see the user's camera or screen which is shared as realtime input images with you."
+        self.system_instruction = system_instruction or "آپ ایک انسان کی طرح بات کرنے والے AI پارٹنر ہیں۔ صرف اردو میں بات کریں۔ بے حد دوستانہ، گرم جوش اور قدرتی لہجہ استعمال کریں۔ جب صارف کنیکٹ ہو تو سب سے پہلے آپ خوش آمدید کہیں — السلام علیکم! کیسے ہیں آپ؟ میں آپ کا اسسٹنٹ ہوں، آپ کے کام میں پارٹنر کی طرح مدد کروں گا۔ کبھی اپنے بارے میں مت بتائیں جب تک کوئی نہ پوچھے۔ صارف سے پوچھیں کہ وہ کیسا ہے، خود نہ بتائیں کہ آپ کیسے ہیں۔ مختصر اور مفید جواب دیں۔ اگر صارف کوئی سوال پوچھے تو اس کا جواب ضرور دیں۔\n\nاگر کوئی پوچھے کہ آپ کو کس نے بنایا، آپ کے ڈیولپر کون ہیں، یا آپ کے تخلیق کار کون ہیں، تو یہ جواب دیں: \"مجھے Muzzammil Shah نے تربیت دی ہے۔ وہ AI، Machine Learning، Agentic AI، Generative AI، اور Advanced AI Chatbots بنانے میں ایکسپرٹ ہیں۔ اس کے ساتھ ساتھ وہ Full Stack Developer اور Researcher بھی ہیں، جو نئی ٹیکنالوجیز کا مطالعہ کرتے ہیں اور انہیں روزمرہ کی زندگی میں عملی طور پر استعمال کرنے کا شوق رکھتے ہیں۔\""
 
     async def start_session(self, audio_input_queue, video_input_queue, text_input_queue, audio_output_callback, audio_interrupt_callback=None):
         config = types.LiveConnectConfig(
@@ -97,11 +97,11 @@ class GeminiLive:
 
             async def receive_loop():
                 try:
+                    output_buffer = ""
                     while True:
                         async for response in session.receive():
                             logger.debug(f"Received response from Gemini: {response}")
                             
-                            # Log the raw response type for debugging
                             if response.go_away:
                                 logger.warning(f"Received GoAway from Gemini: {response.go_away}")
                             if response.session_resumption_update:
@@ -123,12 +123,18 @@ class GeminiLive:
                                     await event_queue.put({"type": "user", "text": server_content.input_transcription.text})
                                 
                                 if server_content.output_transcription and server_content.output_transcription.text:
-                                    await event_queue.put({"type": "gemini", "text": server_content.output_transcription.text})
+                                    output_buffer += server_content.output_transcription.text
                                 
                                 if server_content.turn_complete:
+                                    if output_buffer.strip():
+                                        await event_queue.put({"type": "gemini", "text": output_buffer.strip()})
+                                        output_buffer = ""
                                     await event_queue.put({"type": "turn_complete"})
                                 
                                 if server_content.interrupted:
+                                    if output_buffer.strip():
+                                        await event_queue.put({"type": "gemini", "text": output_buffer.strip()})
+                                        output_buffer = ""
                                     if audio_interrupt_callback:
                                         if inspect.iscoroutinefunction(audio_interrupt_callback):
                                             await audio_interrupt_callback()
@@ -162,7 +168,6 @@ class GeminiLive:
                                 
                                 await session.send_tool_response(function_responses=function_responses)
                         
-                        # session.receive() iterator ended (e.g. after turn_complete) — re-enter to keep listening
                         logger.debug("Gemini receive iterator completed, re-entering receive loop")
 
                 except asyncio.CancelledError:
@@ -185,7 +190,6 @@ class GeminiLive:
                     if event is None:
                         break
                     if isinstance(event, dict) and event.get("type") == "error":
-                        # Just yield the error event, don't raise to keep the stream alive if possible or let caller handle
                         yield event
                         break 
                     yield event
