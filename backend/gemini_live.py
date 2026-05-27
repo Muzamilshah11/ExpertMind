@@ -44,8 +44,8 @@ class GeminiLive:
                 )
             ),
             system_instruction=types.Content(parts=[types.Part(text=self.system_instruction)]),
-            input_audio_transcription=types.AudioTranscriptionConfig(),
-            output_audio_transcription=types.AudioTranscriptionConfig(),
+            input_audio_transcription=types.AudioTranscriptionConfig(language_codes=['ur']),
+            output_audio_transcription=types.AudioTranscriptionConfig(language_codes=['ur']),
             realtime_input_config=types.RealtimeInputConfig(
                 turn_coverage="TURN_INCLUDES_ONLY_ACTIVITY",
             ),
