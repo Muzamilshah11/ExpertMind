@@ -10,6 +10,7 @@ const LiveSession: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
+  const [isCameraFront, setIsCameraFront] = useState(true);
   const [isSharingScreen, setIsSharingScreen] = useState(false);
   const [messages, setMessages] = useState<{ type: string; text: string }[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -76,11 +77,21 @@ const LiveSession: React.FC = () => {
       mediaHandler.current.stopVideo(videoRef.current);
       setIsCameraOn(false);
     } else {
+      setIsCameraFront(true);
       await mediaHandler.current.startVideo(videoRef.current!, (frame) => {
         geminiClient.current.sendImage(frame);
-      });
+      }, 'user');
       setIsCameraOn(true);
     }
+  };
+
+  const handleSwitchCamera = async () => {
+    const newFacing = isCameraFront ? 'environment' : 'user';
+    mediaHandler.current.stopVideo(videoRef.current);
+    await mediaHandler.current.startVideo(videoRef.current!, (frame) => {
+      geminiClient.current.sendImage(frame);
+    }, newFacing);
+    setIsCameraFront(!isCameraFront);
   };
 
   const handleToggleScreen = async () => {
@@ -151,6 +162,11 @@ const LiveSession: React.FC = () => {
         <button onClick={handleToggleCamera} disabled={!isConnected} className={`px-5 py-2.5 rounded-lg font-medium transition-all ${isCameraOn ? 'bg-red-600 hover:bg-red-500' : 'bg-purple-600 hover:bg-purple-500'} text-white disabled:opacity-40`}>
           {isCameraOn ? '⏹ Stop Cam' : '📷 Start Cam'}
         </button>
+        {isCameraOn && (
+          <button onClick={handleSwitchCamera} disabled={!isConnected} className="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium transition-all disabled:opacity-40">
+            🔄 {isCameraFront ? 'Back' : 'Front'}
+          </button>
+        )}
         <button onClick={handleToggleScreen} disabled={!isConnected} className={`px-5 py-2.5 rounded-lg font-medium transition-all ${isSharingScreen ? 'bg-red-600 hover:bg-red-500' : 'bg-indigo-600 hover:bg-indigo-500'} text-white disabled:opacity-40`}>
           {isSharingScreen ? '⏹ Stop Share' : '🖥 Share Screen'}
         </button>
