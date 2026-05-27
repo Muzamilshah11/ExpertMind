@@ -10,6 +10,7 @@ const LiveSession: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
+  const [isSharingScreen, setIsSharingScreen] = useState(false);
   const [messages, setMessages] = useState<{ type: string; text: string }[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
@@ -27,6 +28,7 @@ const LiveSession: React.FC = () => {
       mediaHandler.current.stopAudio();
       mediaHandler.current.stopVideo(videoRef.current);
       geminiClient.current.disconnect();
+      setIsSharingScreen(false);
     };
   }, []);
 
@@ -81,6 +83,24 @@ const LiveSession: React.FC = () => {
     }
   };
 
+  const handleToggleScreen = async () => {
+    if (isSharingScreen) {
+      mediaHandler.current.stopVideo(videoRef.current);
+      setIsSharingScreen(false);
+    } else {
+      if (isCameraOn) {
+        mediaHandler.current.stopVideo(videoRef.current);
+        setIsCameraOn(false);
+      }
+      await mediaHandler.current.startScreen(videoRef.current!, (frame) => {
+        geminiClient.current.sendImage(frame);
+      }, () => {
+        setIsSharingScreen(false);
+      });
+      setIsSharingScreen(true);
+    }
+  };
+
   const handleSummarize = async () => {
     const transcript = messages.map(m => `${m.type}: ${m.text}`).join('\n');
     const response = await fetch('/api/summarize', {
@@ -107,8 +127,18 @@ const LiveSession: React.FC = () => {
     <div className="flex flex-col items-center p-6 space-y-6 max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold text-white">ExpertMind Live Session</h1>
 
-      <div className="w-full max-w-md bg-slate-800 rounded-xl p-4 shadow-lg">
+      <div className="w-full max-w-md bg-slate-800 rounded-xl p-4 shadow-lg relative">
         <video ref={videoRef} autoPlay playsInline muted className="w-full h-48 bg-slate-700 rounded-lg object-cover" />
+        {isSharingScreen && (
+          <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+            <span className="w-2 h-2 bg-white rounded-full animate-pulse" /> Screen Share Active
+          </div>
+        )}
+        {isCameraOn && !isSharingScreen && (
+          <div className="absolute top-2 left-2 bg-green-600 text-white text-xs px-2 py-1 rounded-full">
+            Camera Active
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-3 justify-center">
@@ -120,6 +150,9 @@ const LiveSession: React.FC = () => {
         </button>
         <button onClick={handleToggleCamera} disabled={!isConnected} className={`px-5 py-2.5 rounded-lg font-medium transition-all ${isCameraOn ? 'bg-red-600 hover:bg-red-500' : 'bg-purple-600 hover:bg-purple-500'} text-white disabled:opacity-40`}>
           {isCameraOn ? '⏹ Stop Cam' : '📷 Start Cam'}
+        </button>
+        <button onClick={handleToggleScreen} disabled={!isConnected} className={`px-5 py-2.5 rounded-lg font-medium transition-all ${isSharingScreen ? 'bg-red-600 hover:bg-red-500' : 'bg-indigo-600 hover:bg-indigo-500'} text-white disabled:opacity-40`}>
+          {isSharingScreen ? '⏹ Stop Share' : '🖥 Share Screen'}
         </button>
         <button onClick={() => setIsSettingsOpen(true)} className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-medium transition-all">
           ⚙ Settings
