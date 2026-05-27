@@ -10,7 +10,7 @@ const LiveSession: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
-  const [messages, setMessages] = useState<string[]>([]);
+  const [messages, setMessages] = useState<{ type: string; text: string }[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [textInput, setTextInput] = useState('');
@@ -41,8 +41,12 @@ const LiveSession: React.FC = () => {
     await geminiClient.current.connect((message) => {
       if (message.type === 'audio') {
         mediaHandler.current.playAudio(new Uint8Array(message.data).buffer);
-      } else {
-        setMessages((prev) => [...prev, JSON.stringify(message)]);
+      } else if (message.type === 'gemini' && message.text) {
+        setMessages((prev) => [...prev, { type: 'gemini', text: message.text }]);
+      } else if (message.type === 'user' && message.text) {
+        setMessages((prev) => [...prev, { type: 'user', text: message.text }]);
+      } else if (message.type === 'error') {
+        setMessages((prev) => [...prev, { type: 'error', text: message.error }]);
       }
     });
     geminiClient.current.sendSettings(settings);
@@ -78,7 +82,7 @@ const LiveSession: React.FC = () => {
   };
 
   const handleSummarize = async () => {
-    const transcript = messages.join('\n');
+    const transcript = messages.map(m => `${m.type}: ${m.text}`).join('\n');
     const response = await fetch('/api/summarize', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -89,13 +93,13 @@ const LiveSession: React.FC = () => {
         })
     });
     const data = await response.json();
-    setMessages((prev) => [...prev, `Session summarized: ${data.session_id}`]);
+    setMessages((prev) => [...prev, { type: 'gemini', text: `Session summarized: ${data.session_id}` }]);
   };
 
   const handleSendText = () => {
     if (!textInput.trim() || !isConnected) return;
     geminiClient.current.sendText(textInput);
-    setMessages((prev) => [...prev, `You: ${textInput}`]);
+    setMessages((prev) => [...prev, { type: 'user', text: textInput }]);
     setTextInput('');
   };
 
@@ -155,8 +159,13 @@ const LiveSession: React.FC = () => {
         </div>
       )}
 
-      <div className="w-full max-w-md h-64 overflow-y-auto border p-2">
-        {messages.map((msg, i) => <div key={i}>{msg}</div>)}
+      <div className="w-full max-w-md h-64 overflow-y-auto border p-2 space-y-1">
+        {messages.map((msg, i) => {
+          if (msg.type === 'gemini') return <div key={i} className="text-green-300"><strong>AI:</strong> {msg.text}</div>;
+          if (msg.type === 'user') return <div key={i} className="text-blue-300"><strong>آپ:</strong> {msg.text}</div>;
+          if (msg.type === 'error') return <div key={i} className="text-red-400"><strong>Error:</strong> {msg.text}</div>;
+          return null;
+        })}
       </div>
     </div>
   );
