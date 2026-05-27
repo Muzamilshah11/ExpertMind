@@ -8,7 +8,7 @@ const LiveSession = dynamic(() => import('@/components/LiveSession'), {
 
 export default function SessionPage() {
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white">
       <LiveSession />
     </div>
   );

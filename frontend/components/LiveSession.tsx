@@ -104,69 +104,94 @@ const LiveSession: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center p-4 space-y-4">
-      <h1 className="text-2xl font-bold">Live Session</h1>
+    <div className="flex flex-col items-center p-6 space-y-6 max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold text-white">ExpertMind Live Session</h1>
 
-      <video ref={videoRef} autoPlay playsInline muted className="w-64 h-48 bg-gray-200" />
+      <div className="w-full max-w-md bg-slate-800 rounded-xl p-4 shadow-lg">
+        <video ref={videoRef} autoPlay playsInline muted className="w-full h-48 bg-slate-700 rounded-lg object-cover" />
+      </div>
 
-      <div className="flex space-x-2">
-        <button onClick={handleConnect} className="p-2 bg-blue-500 text-white rounded">
-          {isConnected ? 'Connected' : 'Connect'}
+      <div className="flex flex-wrap gap-3 justify-center">
+        <button onClick={handleConnect} className={`px-5 py-2.5 rounded-lg font-medium transition-all ${isConnected ? 'bg-emerald-600 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>
+          {isConnected ? '✅ Connected' : 'Connect'}
         </button>
-        <button onClick={handleToggleRecording} className="p-2 bg-green-500 text-white rounded">
-          {isRecording ? 'Stop Audio' : 'Start Audio'}
+        <button onClick={handleToggleRecording} disabled={!isConnected} className={`px-5 py-2.5 rounded-lg font-medium transition-all ${isRecording ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'} text-white disabled:opacity-40`}>
+          {isRecording ? '⏹ Stop Mic' : '🎤 Start Mic'}
         </button>
-        <button onClick={handleToggleCamera} className="p-2 bg-purple-500 text-white rounded">
-          {isCameraOn ? 'Stop Camera' : 'Start Camera'}
+        <button onClick={handleToggleCamera} disabled={!isConnected} className={`px-5 py-2.5 rounded-lg font-medium transition-all ${isCameraOn ? 'bg-red-600 hover:bg-red-500' : 'bg-purple-600 hover:bg-purple-500'} text-white disabled:opacity-40`}>
+          {isCameraOn ? '⏹ Stop Cam' : '📷 Start Cam'}
         </button>
-        <button onClick={() => setIsSettingsOpen(true)} className="p-2 bg-yellow-500 text-white rounded">
-          Settings
+        <button onClick={() => setIsSettingsOpen(true)} className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-medium transition-all">
+          ⚙ Settings
         </button>
-        <button onClick={handleSummarize} className="p-2 bg-red-500 text-white rounded">
-          Summarize
+        <button onClick={handleSummarize} disabled={!isConnected} className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-medium transition-all disabled:opacity-40">
+          📋 Summarize
         </button>
       </div>
 
-      <div className="flex w-full max-w-md space-x-2">
+      <div className="flex w-full max-w-md gap-2">
         <input
           type="text"
           value={textInput}
           onChange={(e) => setTextInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSendText(); }}
-          placeholder="Type your question here..."
-          className="flex-1 p-2 border rounded text-black"
+          placeholder="یہاں اپنا سوال لکھیں..."
+          className="flex-1 px-4 py-2.5 rounded-lg bg-slate-700 text-white placeholder-slate-400 border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
           disabled={!isConnected}
         />
-        <button onClick={handleSendText} disabled={!isConnected} className="p-2 bg-blue-500 text-white rounded">
+        <button onClick={handleSendText} disabled={!isConnected} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-all disabled:opacity-40">
           Send
         </button>
       </div>
 
-      {isSettingsOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white p-4 rounded">
-                <h2 className="text-lg font-bold">Settings</h2>
-                <textarea value={settings.systemPrompt} onChange={e => setSettings({...settings, systemPrompt: e.target.value})} className="border w-full" />
-                <select value={settings.voice} onChange={e => setSettings({...settings, voice: e.target.value})} className="border w-full">
-                    <option value="Puck">Puck</option>
-                    <option value="Charon">Charon</option>
-                    <option value="Kore">Kore</option>
-                    <option value="Fenrir">Fenrir</option>
-                    <option value="Aoede">Aoede</option>
-                </select>
-                <button onClick={() => saveSettings(settings)} className="bg-blue-500 text-white p-2">Save</button>
-            </div>
-        </div>
-      )}
-
-      <div className="w-full max-w-md h-64 overflow-y-auto border p-2 space-y-1">
+      <div className="w-full max-w-md h-80 overflow-y-auto bg-slate-800 rounded-xl p-4 space-y-3 border border-slate-700 shadow-lg">
+        {messages.length === 0 && (
+          <p className="text-slate-400 text-center">پیغامات یہاں ظاہر ہوں گے...</p>
+        )}
         {messages.map((msg, i) => {
-          if (msg.type === 'gemini') return <div key={i} className="text-green-300"><strong>AI:</strong> {msg.text}</div>;
-          if (msg.type === 'user') return <div key={i} className="text-blue-300"><strong>آپ:</strong> {msg.text}</div>;
-          if (msg.type === 'error') return <div key={i} className="text-red-400"><strong>Error:</strong> {msg.text}</div>;
+          if (msg.type === 'gemini') return (
+            <div key={i} className="bg-slate-700/50 rounded-lg p-3">
+              <span className="text-emerald-400 font-semibold text-sm">AI</span>
+              <p className="text-white mt-1">{msg.text}</p>
+            </div>
+          );
+          if (msg.type === 'user') return (
+            <div key={i} className="bg-blue-900/30 rounded-lg p-3 border-l-4 border-blue-500">
+              <span className="text-blue-300 font-semibold text-sm">آپ</span>
+              <p className="text-white mt-1">{msg.text}</p>
+            </div>
+          );
+          if (msg.type === 'error') return (
+            <div key={i} className="bg-red-900/30 rounded-lg p-3 border-l-4 border-red-500">
+              <span className="text-red-400 font-semibold text-sm">Error</span>
+              <p className="text-red-200 mt-1">{msg.text}</p>
+            </div>
+          );
           return null;
         })}
       </div>
+
+      {isSettingsOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-slate-800 p-6 rounded-xl w-full max-w-md border border-slate-600 shadow-2xl">
+            <h2 className="text-xl font-bold text-white mb-4">Settings</h2>
+            <label className="block text-sm text-slate-300 mb-1">System Prompt</label>
+            <textarea value={settings.systemPrompt} onChange={e => setSettings({...settings, systemPrompt: e.target.value})} className="w-full p-2 rounded bg-slate-700 text-white border border-slate-600 mb-4 h-24" />
+            <label className="block text-sm text-slate-300 mb-1">Voice</label>
+            <select value={settings.voice} onChange={e => setSettings({...settings, voice: e.target.value})} className="w-full p-2 rounded bg-slate-700 text-white border border-slate-600 mb-4">
+              <option value="Puck">Puck</option>
+              <option value="Charon">Charon</option>
+              <option value="Kore">Kore</option>
+              <option value="Fenrir">Fenrir</option>
+              <option value="Aoede">Aoede</option>
+            </select>
+            <div className="flex gap-2">
+              <button onClick={() => saveSettings(settings)} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white p-2.5 rounded-lg font-medium">Save</button>
+              <button onClick={() => setIsSettingsOpen(false)} className="flex-1 bg-slate-600 hover:bg-slate-500 text-white p-2.5 rounded-lg font-medium">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
