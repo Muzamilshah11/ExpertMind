@@ -2,10 +2,20 @@ import React, { useRef, useState, useEffect } from 'react';
 import { GeminiClient, SessionSettings } from '../lib/gemini-client';
 import { MediaHandler } from '../lib/media-handler';
 
+interface ReportData {
+  session_id: string;
+  executive_summary: string;
+  implementation_roadmap: string[];
+  agent_outputs: Record<string, any>;
+  final_spec: Record<string, any>;
+  summary: string;
+}
+
 const LiveSession: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaHandler = useRef(new MediaHandler());
   const geminiClient = useRef(new GeminiClient());
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const [isConnected, setIsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -20,6 +30,13 @@ const LiveSession: React.FC = () => {
     voice: 'Puck',
     systemPrompt: 'آپ ایک دوستانہ اور مددگار AI کنسلٹنٹ ہیں۔ صرف اردو میں بات کریں اور جواب دیں۔ صارف ہندی، اردو، یا کسی بھی دوسری زبان میں بات کر سکتا ہے — آپ کا کام صرف اردو رسم الخط میں جواب دینا اور ریکارڈ رکھنا ہے۔',
   });
+
+  const [showPdfPrompt, setShowPdfPrompt] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState('');
+  const [isLoadingReport, setIsLoadingReport] = useState(false);
+  const [reportError, setReportError] = useState('');
 
   useEffect(() => {
     const savedSettings = localStorage.getItem('expertmind-settings');
@@ -126,7 +143,44 @@ const LiveSession: React.FC = () => {
         })
     });
     const data = await response.json();
+    setCurrentSessionId(data.session_id);
     setMessages((prev) => [...prev, { type: 'gemini', text: `Session summarized: ${data.session_id}` }]);
+    setShowPdfPrompt(true);
+  };
+
+  const handleGenerateReport = async () => {
+    setIsLoadingReport(true);
+    setShowPdfPrompt(false);
+    setReportError('');
+
+    try {
+      const orchResponse = await fetch('/api/orchestrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: currentSessionId }),
+      });
+      if (!orchResponse.ok) throw new Error('Orchestration failed');
+      const orchData = await orchResponse.json();
+
+      setReportData({
+        session_id: orchData.session_id,
+        executive_summary: orchData.executive_summary || 'No executive summary available.',
+        implementation_roadmap: orchData.implementation_roadmap || [],
+        agent_outputs: orchData.agent_outputs || {},
+        final_spec: orchData.final_spec || {},
+        summary: orchData.executive_summary || '',
+      });
+
+      setShowReport(true);
+    } catch (err: any) {
+      setReportError(err.message || 'Failed to generate report');
+    } finally {
+      setIsLoadingReport(false);
+    }
+  };
+
+  const handlePrint = () => {
+    setTimeout(() => window.print(), 300);
   };
 
   const handleSendText = () => {
@@ -239,6 +293,147 @@ const LiveSession: React.FC = () => {
             <div className="flex gap-2">
               <button onClick={() => saveSettings(settings)} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white p-2.5 rounded-lg font-medium">Save</button>
               <button onClick={() => setIsSettingsOpen(false)} className="flex-1 bg-slate-600 hover:bg-slate-500 text-white p-2.5 rounded-lg font-medium">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPdfPrompt && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center">
+            <div className="text-5xl mb-4">📄</div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">PDF Report</h2>
+            <p className="text-gray-600 mb-6 leading-relaxed">
+              Kya aap is session ki complete report download karna chahte hain?
+            </p>
+            {reportError && (
+              <p className="text-red-500 text-sm mb-4">{reportError}</p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={handleGenerateReport}
+                disabled={isLoadingReport}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white py-3 px-4 rounded-xl font-semibold transition-all"
+              >
+                {isLoadingReport ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Generating...
+                  </span>
+                ) : (
+                  'Haan, Download karein'
+                )}
+              </button>
+              <button
+                onClick={() => { setShowPdfPrompt(false); setReportError(''); }}
+                disabled={isLoadingReport}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 px-4 rounded-xl font-semibold transition-all disabled:opacity-50"
+              >
+                Nahi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReport && reportData && (
+        <div className="fixed inset-0 bg-white z-50 overflow-y-auto" ref={reportRef}>
+          <style>{`
+            @media print {
+              @page { margin: 15mm; }
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .no-print { display: none !important; }
+              .report-section { page-break-inside: avoid; }
+            }
+          `}</style>
+
+          {/* Print/Close toolbar */}
+          <div className="no-print sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between shadow-sm z-10">
+            <h1 className="text-lg font-bold text-gray-800">ExpertMind Report</h1>
+            <div className="flex gap-2">
+              <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                Download PDF
+              </button>
+              <button onClick={() => setShowReport(false)} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium text-sm transition-all">
+                Close
+              </button>
+            </div>
+          </div>
+
+          {/* Report Content */}
+          <div className="max-w-4xl mx-auto px-4 sm:px-8 py-8 text-gray-900">
+            {/* Cover */}
+            <div className="text-center py-12 sm:py-20 border-b-2 border-blue-600 mb-8 report-section">
+              <h1 className="text-3xl sm:text-4xl font-bold text-blue-700 mb-3">ExpertMind Report</h1>
+              <p className="text-gray-500 text-sm">Session ID: {reportData.session_id}</p>
+              <p className="text-gray-500 text-sm">{new Date().toLocaleDateString('en-PK', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            </div>
+
+            {/* Executive Summary */}
+            <div className="mb-8 report-section">
+              <h2 className="text-xl font-bold text-blue-700 border-b border-blue-200 pb-2 mb-4">1. Executive Summary</h2>
+              <p className="text-gray-700 leading-relaxed whitespace-pre-line">{reportData.executive_summary}</p>
+            </div>
+
+            {/* Agent Findings */}
+            {Object.keys(reportData.agent_outputs).length > 0 && (
+              <div className="mb-8 report-section">
+                <h2 className="text-xl font-bold text-blue-700 border-b border-blue-200 pb-2 mb-4">2. Agent Analysis</h2>
+                {Object.entries(reportData.agent_outputs).map(([agent, output]: [string, any]) => (
+                  <div key={agent} className="mb-6 bg-gray-50 rounded-xl p-4 sm:p-6">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-3 capitalize">
+                      {agent.replace(/_/g, ' ')}
+                    </h3>
+                    {typeof output === 'object' ? (
+                      <div className="space-y-3">
+                        {Object.entries(output).map(([key, val]: [string, any]) => (
+                          <div key={key}>
+                            <p className="text-sm font-medium text-gray-500 capitalize mb-1">
+                              {key.replace(/_/g, ' ')}
+                            </p>
+                            {Array.isArray(val) ? (
+                              <ul className="list-disc list-inside text-gray-700 space-y-1">
+                                {val.map((item: string, i: number) => (
+                                  <li key={i} className="text-sm sm:text-base">{item}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-gray-700 text-sm sm:text-base">{String(val)}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-700 text-sm sm:text-base">{String(output)}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Implementation Roadmap */}
+            {reportData.implementation_roadmap.length > 0 && (
+              <div className="mb-8 report-section">
+                <h2 className="text-xl font-bold text-blue-700 border-b border-blue-200 pb-2 mb-4">
+                  {Object.keys(reportData.agent_outputs).length > 0 ? '3' : '2'}. Implementation Roadmap
+                </h2>
+                <ol className="space-y-3">
+                  {reportData.implementation_roadmap.map((step: string, i: number) => (
+                    <li key={i} className="flex gap-3">
+                      <span className="flex-shrink-0 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold mt-0.5">
+                        {i + 1}
+                      </span>
+                      <span className="text-gray-700 leading-relaxed pt-0.5">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="text-center text-gray-400 text-xs border-t border-gray-200 pt-6 mt-8">
+              Generated by ExpertMind AI · {new Date().toLocaleDateString('en-PK')}
             </div>
           </div>
         </div>

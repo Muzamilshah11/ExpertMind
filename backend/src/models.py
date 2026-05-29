@@ -1,7 +1,8 @@
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from uuid import UUID, uuid4
 from datetime import datetime
 
+from pydantic import BaseModel
 from sqlmodel import Field, SQLModel, Relationship, Column, JSON, String
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 import json
@@ -64,6 +65,17 @@ class AgentRun(SQLModel, table=True):
 
     session: SessionSummary = Relationship(back_populates="agent_runs")
 
+# Pydantic model for Gemini structured output parsing
+class SummaryParseResult(BaseModel):
+    core_problem: str
+    business_context: str = ""
+    technical_constraints: List[str] = []
+    regulatory_requirements: List[str] = []
+    success_criteria: List[str] = []
+    detected_domains: List[str] = []
+    extracted_artifacts: List[Any] = []
+    confidence_score: float = 0.0
+
 # Define Pydantic models for API request/response
 class SummarizeRequest(SQLModel):
     session_transcript: str
@@ -75,14 +87,22 @@ class SummarizeResponse(SQLModel):
     status: str
 
 class OrchestrateRequest(SQLModel):
-    session_id: UUID
+    session_id: str
 
 class OrchestrateResponse(SQLModel):
-    session_id: UUID
-    status: str
+    session_id: str
+    pdf_url: str
+    final_spec: Dict
+    executive_summary: str
+    implementation_roadmap: List[str]
+    agent_outputs: Dict[str, Any]
+
+    class Config:
+        arbitrary_types_allowed = True
 
 class GeneratePDFRequest(SQLModel):
     state: Dict
 
 class GeneratePDFResponse(SQLModel):
     pdf_url: str
+    status: str

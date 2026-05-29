@@ -55,3 +55,13 @@ frontend/node_modules/
 frontend/.next/
 frontend/out/
 frontend/build/
+
+# ExpertMind specific ignores
+.opencode/
+backend/server_err.log
+backend/server_out.log
+backend/server_out.txt
+history/prompts/
+opencode.md
+session_id.txt
+
