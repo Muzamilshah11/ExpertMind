@@ -280,6 +280,8 @@ export default function LiveSession() {
         onMenuClick={() => setShowHistory(true)}
         onNewChat={handleNewChat}
         isConnected={isConnected}
+        isCameraOn={isCameraOn}
+        isSharingScreen={isSharingScreen}
       />
 
       {connectionError && (
