@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ChatSession } from '../lib/session-storage';
 
 interface SessionHistoryProps {
@@ -14,6 +15,12 @@ export default function SessionHistory({
   show, onClose, sessions, activeSessionId,
   onSelectSession, onNewChat, onDeleteSession,
 }: SessionHistoryProps) {
+  const [search, setSearch] = useState('');
+
+  const filtered = search.trim()
+    ? sessions.filter(s => s.title.toLowerCase().includes(search.toLowerCase()))
+    : sessions;
+
   return (
     <>
       {show && <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-40" onClick={onClose} />}
@@ -28,7 +35,7 @@ export default function SessionHistory({
           </button>
         </div>
 
-        <div className="p-3">
+        <div className="p-3 space-y-2">
           <button
             onClick={() => { onNewChat(); onClose(); }}
             className="flex items-center gap-2 w-full px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
@@ -38,13 +45,25 @@ export default function SessionHistory({
             </svg>
             New Chat
           </button>
+
+          <div className="relative">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search conversations..."
+              className="w-full bg-slate-800 text-slate-200 text-xs placeholder-slate-500 rounded-lg pl-8 pr-3 py-2 outline-none border border-slate-700 focus:border-blue-500 transition-colors"
+            />
+          </div>
         </div>
 
-        <div className="overflow-y-auto h-[calc(100%-110px)] px-2 space-y-1">
-          {sessions.length === 0 && (
-            <p className="text-slate-500 text-xs text-center py-8">No conversations yet</p>
+        <div className="overflow-y-auto h-[calc(100%-155px)] px-2 space-y-1">
+          {filtered.length === 0 && (
+            <p className="text-slate-500 text-xs text-center py-8">No conversations {search ? 'match your search' : 'yet'}</p>
           )}
-          {sessions.map(s => (
+          {filtered.map(s => (
             <div
               key={s.id}
               onClick={() => { onSelectSession(s.id); onClose(); }}

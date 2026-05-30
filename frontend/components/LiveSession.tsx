@@ -384,7 +384,15 @@ export default function LiveSession() {
         />
       </div>
 
-      <video ref={videoRef} autoPlay playsInline muted className="hidden" />
+      <div className={`fixed top-16 right-4 z-50 rounded-2xl overflow-hidden shadow-2xl border-2 transition-all duration-300 ${(isCameraOn || isSharingScreen) ? 'opacity-100 scale-100 border-slate-700/50' : 'opacity-0 scale-95 border-transparent pointer-events-none'}`}>
+        <video ref={videoRef} autoPlay playsInline muted className="w-40 h-52 object-cover bg-black" />
+        {(isCameraOn || isSharingScreen) && (
+          <div className="absolute bottom-2 left-2 flex items-center gap-1.5 text-[10px] text-white bg-black/60 px-2 py-0.5 rounded-md backdrop-blur-sm">
+            <span className={`w-1.5 h-1.5 rounded-full ${isCameraOn ? 'bg-green-500 animate-pulse' : 'bg-blue-500 animate-pulse'}`} />
+            {isCameraOn ? 'Camera' : 'Screen Share'}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
