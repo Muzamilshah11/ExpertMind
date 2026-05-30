@@ -71,8 +71,10 @@ export class GeminiClient {
         reject(new Error("Failed to connect to backend WebSocket"));
       };
       this.ws.onclose = (event) => {
+        clearTimeout(timeout);
         if (event.code !== 1005) {
           console.log(`WebSocket closed: code=${event.code}, reason=${event.reason}`);
+          onMessage({ type: "error", error: "Connection lost" });
         }
       };
     });
@@ -85,18 +87,22 @@ export class GeminiClient {
   }
 
   sendAudio(pcmData: ArrayBuffer) {
-    this.ws?.send(pcmData);
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    this.ws.send(pcmData);
   }
 
   sendImage(base64Image: string) {
-    this.ws?.send(JSON.stringify({ type: "image", data: base64Image }));
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    this.ws.send(JSON.stringify({ type: "image", data: base64Image }));
   }
 
   sendText(text: string) {
-    this.ws?.send(JSON.stringify({ type: "text", data: text }));
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    this.ws.send(JSON.stringify({ type: "text", data: text }));
   }
 
   disconnect() {
     this.ws?.close();
+    this.ws = null;
   }
 }

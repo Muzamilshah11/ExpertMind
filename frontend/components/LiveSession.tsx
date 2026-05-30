@@ -74,7 +74,13 @@ export default function LiveSession() {
       setMessages(prev => [...prev, msg]);
       if (activeSessionId) appendMessage(activeSessionId, msg);
     } else if (message.type === 'error') {
-      setMessages(prev => [...prev, { type: 'gemini', text: `Error: ${message.error}`, timestamp: Date.now() }]);
+      if (message.error === 'Connection lost') {
+        setIsConnected(false);
+        setIsRecording(false);
+        setConnectionError('Connection lost. Please reconnect.');
+      } else {
+        setMessages(prev => [...prev, { type: 'gemini', text: `Error: ${message.error}`, timestamp: Date.now() }]);
+      }
     } else if (message.type === 'interrupted') {
       mediaHandler.current.stopAudioPlayback();
     } else if (message.type === 'voice_changed') {
@@ -133,10 +139,14 @@ export default function LiveSession() {
       mediaHandler.current.stopVideo(videoRef.current);
       setIsCameraOn(false);
     } else {
-      await mediaHandler.current.startVideo(videoRef.current!, (frame) => {
-        geminiClient.current.sendImage(frame);
-      }, 'user');
-      setIsCameraOn(true);
+      try {
+        await mediaHandler.current.startVideo(videoRef.current!, (frame) => {
+          geminiClient.current.sendImage(frame);
+        }, 'user');
+        setIsCameraOn(true);
+      } catch {
+        setConnectionError('Camera failed to start. Check permissions.');
+      }
     }
   };
 
@@ -145,14 +155,18 @@ export default function LiveSession() {
       mediaHandler.current.stopVideo(videoRef.current);
       setIsSharingScreen(false);
     } else {
-      if (isCameraOn) {
-        mediaHandler.current.stopVideo(videoRef.current);
-        setIsCameraOn(false);
+      try {
+        await mediaHandler.current.startScreen(videoRef.current!, (frame) => {
+          geminiClient.current.sendImage(frame);
+        }, () => setIsSharingScreen(false));
+        if (isCameraOn) {
+          mediaHandler.current.stopVideo(videoRef.current);
+          setIsCameraOn(false);
+        }
+        setIsSharingScreen(true);
+      } catch {
+        setConnectionError('Screen share failed to start.');
       }
-      await mediaHandler.current.startScreen(videoRef.current!, (frame) => {
-        geminiClient.current.sendImage(frame);
-      }, () => setIsSharingScreen(false));
-      setIsSharingScreen(true);
     }
   };
 

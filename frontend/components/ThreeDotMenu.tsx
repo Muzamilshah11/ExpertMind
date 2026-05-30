@@ -56,7 +56,7 @@ export default function ThreeDotMenu({
         {items.map((item, i) => (
           <button
             key={i}
-            onClick={() => { item.onClick(); onClose(); }}
+            onClick={() => { try { item.onClick(); } catch {} onClose(); }}
             disabled={item.disabled}
             className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-slate-200 rounded-xl hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
