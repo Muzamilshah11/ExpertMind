@@ -368,9 +368,7 @@ export default function LiveSession() {
         />
       </div>
 
-      {isConnected && isCameraOn && (
-        <video ref={videoRef} autoPlay playsInline muted className="hidden" />
-      )}
+      <video ref={videoRef} autoPlay playsInline muted className="hidden" />
     </div>
   );
 }
