@@ -6,8 +6,8 @@ interface ReportData {
   session_id: string;
   executive_summary: string;
   implementation_roadmap: string[];
-  agent_outputs: Record<string, any>;
-  final_spec: Record<string, any>;
+  agent_outputs: Record<string, unknown>;
+  final_spec: Record<string, unknown>;
   summary: string;
 }
 
@@ -18,6 +18,8 @@ const LiveSession: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
 
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionError, setConnectionError] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [isCameraFront, setIsCameraFront] = useState(true);
@@ -26,9 +28,17 @@ const LiveSession: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [textInput, setTextInput] = useState('');
-  const [settings, setSettings] = useState<SessionSettings>({
-    voice: 'Puck',
-    systemPrompt: 'آپ ایک دوستانہ اور مددگار AI کنسلٹنٹ ہیں۔ صرف اردو میں بات کریں اور جواب دیں۔ صارف ہندی، اردو، یا کسی بھی دوسری زبان میں بات کر سکتا ہے — آپ کا کام صرف اردو رسم الخط میں جواب دینا اور ریکارڈ رکھنا ہے۔',
+  const [settings, setSettings] = useState<SessionSettings>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('expertmind-settings');
+      if (saved) {
+        try { return JSON.parse(saved); } catch { /* ignore */ }
+      }
+    }
+    return {
+      voice: 'Puck',
+      systemPrompt: 'آپ ایک دوستانہ اور مددگار AI کنسلٹنٹ ہیں۔ صرف اردو میں بات کریں اور جواب دیں۔ صارف ہندی، اردو، یا کسی بھی دوسری زبان میں بات کر سکتا ہے — آپ کا کام صرف اردو رسم الخط میں جواب دینا اور ریکارڈ رکھنا ہے۔',
+    };
   });
 
   const [showPdfPrompt, setShowPdfPrompt] = useState(false);
@@ -39,9 +49,6 @@ const LiveSession: React.FC = () => {
   const [reportError, setReportError] = useState('');
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem('expertmind-settings');
-    if (savedSettings) setSettings(JSON.parse(savedSettings));
-
     return () => {
       mediaHandler.current.stopAudio();
       mediaHandler.current.stopVideo(videoRef.current);
@@ -54,29 +61,43 @@ const LiveSession: React.FC = () => {
     setSettings(newSettings);
     localStorage.setItem('expertmind-settings', JSON.stringify(newSettings));
     setIsSettingsOpen(false);
+    if (isConnected) {
+      geminiClient.current.sendSettings(newSettings);
+    }
   };
 
   const handleConnect = async () => {
-    await mediaHandler.current.initializeAudio();
-    await geminiClient.current.connect((message) => {
-      if (message.type === 'audio') {
-        mediaHandler.current.playAudio(new Uint8Array(message.data).buffer);
-      } else if (message.type === 'gemini' && message.text) {
-        setMessages((prev) => [...prev, { type: 'gemini', text: message.text }]);
-      } else if (message.type === 'user' && message.text) {
-        setMessages((prev) => [...prev, { type: 'user', text: message.text }]);
-      } else if (message.type === 'error') {
-        setMessages((prev) => [...prev, { type: 'error', text: message.error }]);
+    setConnectionError('');
+    setIsConnecting(true);
+    try {
+      await mediaHandler.current.initializeAudio();
+      await geminiClient.current.connect((message) => {
+        if (message.type === 'audio') {
+          mediaHandler.current.playAudio(new Uint8Array(message.data).buffer);
+        } else if (message.type === 'gemini' && message.text) {
+          setMessages((prev) => [...prev, { type: 'gemini', text: message.text }]);
+        } else if (message.type === 'user' && message.text) {
+          setMessages((prev) => [...prev, { type: 'user', text: message.text }]);
+        } else if (message.type === 'error') {
+          setMessages((prev) => [...prev, { type: 'error', text: message.error }]);
       } else if (message.type === 'interrupted') {
         mediaHandler.current.stopAudioPlayback();
+      } else if (message.type === 'voice_changed') {
+        mediaHandler.current.stopAudioPlayback();
+        setMessages((prev) => [...prev, { type: 'gemini', text: `Voice switched to ${message.voice}` }]);
       }
-    });
-    geminiClient.current.sendSettings(settings);
-    setIsConnected(true);
-    await mediaHandler.current.startAudio((data) => {
-      geminiClient.current.sendAudio(data);
-    });
-    setIsRecording(true);
+      });
+      geminiClient.current.sendSettings(settings);
+      setIsConnected(true);
+      await mediaHandler.current.startAudio((data) => {
+        geminiClient.current.sendAudio(data);
+      });
+      setIsRecording(true);
+    } catch {
+      setConnectionError('Cannot connect to backend. Make sure the server is running on http://localhost:8000');
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   const handleToggleRecording = async () => {
@@ -172,8 +193,8 @@ const LiveSession: React.FC = () => {
       });
 
       setShowReport(true);
-    } catch (err: any) {
-      setReportError(err.message || 'Failed to generate report');
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : 'Failed to generate report');
     } finally {
       setIsLoadingReport(false);
     }
@@ -208,9 +229,15 @@ const LiveSession: React.FC = () => {
         )}
       </div>
 
+      {connectionError && (
+        <div className="w-full max-w-md bg-red-900/50 border border-red-500 text-red-200 rounded-lg p-3 text-sm text-center">
+          {connectionError}
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-3 justify-center">
-        <button onClick={handleConnect} className={`px-5 py-2.5 rounded-lg font-medium transition-all ${isConnected ? 'bg-emerald-600 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>
-          {isConnected ? '✅ Connected' : 'Connect'}
+        <button onClick={handleConnect} disabled={isConnecting} className={`px-5 py-2.5 rounded-lg font-medium transition-all ${isConnected ? 'bg-emerald-600 text-white' : isConnecting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>
+          {isConnecting ? 'Connecting...' : isConnected ? '✅ Connected' : 'Connect'}
         </button>
         <button onClick={handleToggleRecording} disabled={!isConnected} className={`px-5 py-2.5 rounded-lg font-medium transition-all ${isRecording ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'} text-white disabled:opacity-40`}>
           {isRecording ? '⏹ Stop Mic' : '🎤 Start Mic'}
@@ -262,7 +289,7 @@ const LiveSession: React.FC = () => {
           );
           if (msg.type === 'user') return (
             <div key={i} className="bg-blue-900/30 rounded-lg p-3 border-l-4 border-blue-500">
-              <span className="text-blue-300 font-semibold text-sm font-urdu">آپ</span>
+              <span className="text-blue-300 font-semibold text-sm">You</span>
               <p className="text-white mt-1 font-urdu leading-relaxed">{msg.text}</p>
             </div>
           );
@@ -380,14 +407,14 @@ const LiveSession: React.FC = () => {
             {Object.keys(reportData.agent_outputs).length > 0 && (
               <div className="mb-8 report-section">
                 <h2 className="text-xl font-bold text-blue-700 border-b border-blue-200 pb-2 mb-4">2. Agent Analysis</h2>
-                {Object.entries(reportData.agent_outputs).map(([agent, output]: [string, any]) => (
+                {Object.entries(reportData.agent_outputs).map(([agent, output]) => (
                   <div key={agent} className="mb-6 bg-gray-50 rounded-xl p-4 sm:p-6">
                     <h3 className="text-lg font-semibold text-gray-800 mb-3 capitalize">
                       {agent.replace(/_/g, ' ')}
                     </h3>
-                    {typeof output === 'object' ? (
+                    {typeof output === 'object' && output !== null ? (
                       <div className="space-y-3">
-                        {Object.entries(output).map(([key, val]: [string, any]) => (
+                        {Object.entries(output).map(([key, val]) => (
                           <div key={key}>
                             <p className="text-sm font-medium text-gray-500 capitalize mb-1">
                               {key.replace(/_/g, ' ')}

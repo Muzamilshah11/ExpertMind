@@ -189,65 +189,100 @@ async def generate_pdf_endpoint(request: GeneratePDFRequest):
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
-    audio_queue = asyncio.Queue()
-    video_queue = asyncio.Queue()
-    text_queue = asyncio.Queue()
-
-    text_queue.put_nowait("ہیلو")
-
-    async def audio_callback(data):
-        await websocket.send_bytes(data)
-
-    async def interrupt_callback():
-        await websocket.send_json({"type": "interrupted"})
-
-    gemini_live = GeminiLive(
-        api_key=os.getenv("GEMINI_API_KEY", ""),
-        model=os.getenv("LIVE_MODEL", "gemini-3.1-flash-live-preview"),
-        input_sample_rate=16000,
-        voice_name="Puck"
-    )
-
-    async def session_task_runner():
-        try:
-            async for event in gemini_live.start_session(
-                audio_queue, video_queue, text_queue,
-                audio_callback, interrupt_callback
-            ):
-                await websocket.send_json(event)
-        except Exception as e:
-            logger.error(f"Gemini session error: {e}")
-            await websocket.send_json({"type": "error", "error": str(e)})
-
-    async def receiver_task_runner():
-        try:
-            while True:
-                data = await websocket.receive()
-                if "text" in data:
-                    message = json.loads(data["text"])
-                    if message["type"] == "settings":
-                        pass
-                    elif message["type"] == "image":
-                        await video_queue.put(base64.b64decode(message["data"]))
-                    elif message["type"] == "text":
-                        await text_queue.put(message["data"])
-                elif "bytes" in data:
-                    chunk = data["bytes"]
-                    logger.info(f"Received audio chunk: {len(chunk)} bytes")
-                    await audio_queue.put(chunk)
-        except WebSocketDisconnect:
-            logger.info("WebSocket disconnected")
-
-    tasks = [
-        asyncio.create_task(session_task_runner()),
-        asyncio.create_task(receiver_task_runner())
-    ]
-
+    # Wait for initial settings from frontend before starting Gemini session
+    voice_name = "Puck"
+    system_prompt = None
     try:
-        await asyncio.gather(*tasks)
-    finally:
-        for t in tasks:
-            t.cancel()
+        data = await websocket.receive()
+        while "text" in data:
+            msg = json.loads(data["text"])
+            if msg.get("type") == "settings":
+                sd = msg.get("data", {})
+                voice_name = sd.get("voice", voice_name)
+                system_prompt = sd.get("systemPrompt", system_prompt)
+                break
+            data = await websocket.receive()
+    except WebSocketDisconnect:
+        return
+
+    while True:
+        audio_queue = asyncio.Queue()
+        video_queue = asyncio.Queue()
+        text_queue = asyncio.Queue()
+
+        text_queue.put_nowait("ہیلو")
+
+        restart_requested = False
+
+        async def audio_callback(data):
+            await websocket.send_bytes(data)
+
+        async def interrupt_callback():
+            await websocket.send_json({"type": "interrupted"})
+
+        gemini_live = GeminiLive(
+            api_key=os.getenv("GEMINI_API_KEY", ""),
+            model=os.getenv("LIVE_MODEL", "gemini-3.1-flash-live-preview"),
+            input_sample_rate=16000,
+            voice_name=voice_name,
+        )
+        if system_prompt:
+            gemini_live.system_instruction = system_prompt
+
+        async def session_task_runner():
+            nonlocal restart_requested
+            try:
+                async for event in gemini_live.start_session(
+                    audio_queue, video_queue, text_queue,
+                    audio_callback, interrupt_callback
+                ):
+                    if restart_requested:
+                        break
+                    await websocket.send_json(event)
+            except Exception as e:
+                logger.error(f"Gemini session error: {e}")
+                if not restart_requested:
+                    await websocket.send_json({"type": "error", "error": str(e)})
+
+        async def receiver_task_runner():
+            nonlocal voice_name, system_prompt, restart_requested
+            try:
+                while True:
+                    data = await websocket.receive()
+                    if "text" in data:
+                        message = json.loads(data["text"])
+                        if message["type"] == "settings":
+                            sd = message.get("data", {})
+                            voice_name = sd.get("voice", voice_name)
+                            system_prompt = sd.get("systemPrompt", system_prompt)
+                            restart_requested = True
+                            await websocket.send_json({"type": "voice_changed", "voice": voice_name})
+                            logger.info(f"Voice change requested: {voice_name}")
+                            break
+                        elif message["type"] == "image":
+                            await video_queue.put(base64.b64decode(message["data"]))
+                        elif message["type"] == "text":
+                            await text_queue.put(message["data"])
+                    elif "bytes" in data:
+                        chunk = data["bytes"]
+                        logger.info(f"Received audio chunk: {len(chunk)} bytes")
+                        await audio_queue.put(chunk)
+            except WebSocketDisconnect:
+                logger.info("WebSocket disconnected")
+
+        tasks = [
+            asyncio.create_task(session_task_runner()),
+            asyncio.create_task(receiver_task_runner())
+        ]
+
+        try:
+            await asyncio.gather(*tasks)
+        finally:
+            for t in tasks:
+                t.cancel()
+
+        if not restart_requested:
+            break
 
 if __name__ == "__main__":
     import uvicorn
