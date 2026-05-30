@@ -124,6 +124,7 @@ class GeminiLive:
                                 
                                 if server_content.output_transcription and server_content.output_transcription.text:
                                     output_buffer += server_content.output_transcription.text
+                                    await event_queue.put({"type": "gemini_stream", "text": output_buffer.strip()})
                                 
                                 if server_content.turn_complete:
                                     if output_buffer.strip():

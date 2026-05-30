@@ -6,6 +6,7 @@ export interface SessionSettings {
 export type GeminiMessage = 
   | { type: 'audio'; data: ArrayBuffer }
   | { type: 'gemini'; text: string }
+  | { type: 'gemini_stream'; text: string }
   | { type: 'user'; text: string }
   | { type: 'error'; error: string }
   | { type: 'interrupted' }

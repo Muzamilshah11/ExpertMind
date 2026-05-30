@@ -58,6 +58,8 @@ frontend/build/
 
 # ExpertMind specific ignores
 .opencode/
+.agents/
+skills-lock.json
 backend/server_err.log
 backend/server_out.log
 backend/server_out.txt

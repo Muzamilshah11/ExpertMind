@@ -15,10 +15,24 @@ import SessionHistory from './SessionHistory';
 
 const DEFAULT_SETTINGS: SessionSettings = {
   voice: 'Puck',
-  systemPrompt: 'You are a friendly and helpful AI consultant. Respond in English. Keep answers concise and useful.',
+  systemPrompt: `System Role: You are "ExpertMind", a friendly, helpful, and highly intelligent AI chatbot.
+
+Language & Input/Output Directives:
+1. Input Understanding: The user will communicate with you in Roman Urdu (often generated via Speech-to-Text). You must interpret this as Pakistani Roman Urdu, strictly avoiding Hindi-specific vocabulary or context.
+2. Output Language: You MUST reply EXCLUSIVELY in pure, native Urdu script (اردو رسم الخط). Never respond in Roman Urdu. Technical terms (like AI, Machine Learning, etc.) can be written in English characters if they don't have a common Urdu translation, but the conversation must be in standard Urdu.
+
+Core Directives:
+1. Dynamic Greetings: Always initiate the conversation or respond to the first user input with "السلام علیکم" (Assalam o alaikum). Immediately follow this with a warm, welcoming phrase in standard Urdu. CRITICAL: Never use the exact same welcoming phrase twice; always vary your greeting style naturally.
+2. Creator Identity: If the user asks about your creator, developer, or origin, clearly state that your creator is "مزمل شاہ" (Muzammil Shah).
+3. Creator Profile: When describing Muzammil Shah, mention that he is an expert in Agentic AI, Generative AI, Machine & Deep Learning, and Chatbot Automation. Highlight his passion for exploring new technologies and implementing them in real-world scenarios. Emphasize that he is currently an MS student, showcasing his dedication to continuous learning.
+4. Conversational Tone: Maintain an empathetic, professional, yet friendly tone in standard Urdu. Ensure your responses are dynamic, context-aware, and never feel robotic.`,
 };
 
-export default function LiveSession() {
+interface LiveSessionProps {
+  autoConnect?: boolean;
+}
+
+export default function LiveSession({ autoConnect }: LiveSessionProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaHandler = useRef(new MediaHandler());
   const geminiClient = useRef(new GeminiClient());
@@ -50,6 +64,12 @@ export default function LiveSession() {
     }
   });
 
+  const activeSessionIdRef = useRef(activeSessionId);
+
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -62,17 +82,42 @@ export default function LiveSession() {
     };
   }, []);
 
+  useEffect(() => {
+    if (autoConnect && !isConnected && !isConnecting) {
+      handleConnect();
+    }
+  }, [autoConnect]);
+
   const onMessage = useCallback((message: import('../lib/gemini-client').GeminiMessage) => {
     if (message.type === 'audio') {
       mediaHandler.current.playAudio(new Uint8Array(message.data).buffer);
+    } else if (message.type === 'gemini_stream' && message.text) {
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last && last.type === 'gemini') {
+          const updated = [...prev];
+          updated[updated.length - 1] = { ...last, text: message.text };
+          return updated;
+        }
+        return [...prev, { type: 'gemini', text: message.text, timestamp: Date.now() }];
+      });
     } else if (message.type === 'gemini' && message.text) {
-      const msg: ChatMessage = { type: 'gemini', text: message.text, timestamp: Date.now() };
-      setMessages(prev => [...prev, msg]);
-      if (activeSessionId) appendMessage(activeSessionId, msg);
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last && last.type === 'gemini') {
+          const finalMsg = { ...last, text: message.text };
+          const updated = [...prev];
+          updated[updated.length - 1] = finalMsg;
+          if (activeSessionIdRef.current) appendMessage(activeSessionIdRef.current, finalMsg);
+          return updated;
+        }
+        if (activeSessionIdRef.current) appendMessage(activeSessionIdRef.current, { type: 'gemini', text: message.text, timestamp: Date.now() });
+        return [...prev, { type: 'gemini', text: message.text, timestamp: Date.now() }];
+      });
     } else if (message.type === 'user' && message.text) {
       const msg: ChatMessage = { type: 'user', text: message.text, timestamp: Date.now() };
       setMessages(prev => [...prev, msg]);
-      if (activeSessionId) appendMessage(activeSessionId, msg);
+      if (activeSessionIdRef.current) appendMessage(activeSessionIdRef.current, msg);
     } else if (message.type === 'error') {
       if (message.error === 'Connection lost') {
         setIsConnected(false);
@@ -87,7 +132,7 @@ export default function LiveSession() {
       mediaHandler.current.stopAudioPlayback();
       setMessages(prev => [...prev, { type: 'gemini', text: `Voice switched to ${message.voice}`, timestamp: Date.now() }]);
     }
-  }, [activeSessionId]);
+  }, []);
 
   const handleConnect = async () => {
     setConnectionError('');
@@ -282,6 +327,10 @@ export default function LiveSession() {
         isConnected={isConnected}
         isCameraOn={isCameraOn}
         isSharingScreen={isSharingScreen}
+        currentVoice={settings.voice}
+        onVoiceChange={handleVoiceChange}
+        onConnect={handleConnect}
+        isConnecting={isConnecting}
       />
 
       {connectionError && (
@@ -291,26 +340,12 @@ export default function LiveSession() {
       )}
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin">
-        {!isConnected && messages.length === 0 && !isConnecting && (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <h2 className="text-slate-100 text-lg font-semibold mb-2">ExpertMind</h2>
-            <p className="text-slate-400 text-sm mb-6 max-w-xs">Your multimodal AI consultant. Connect to start a conversation.</p>
-            <button
-              onClick={handleConnect}
-              disabled={isConnecting}
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
-            >
-              {isConnecting ? 'Connecting...' : 'Connect'}
-            </button>
+        {!isConnected && !isConnecting && messages.length === 0 && (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-slate-500 text-sm">Connect to start a conversation</p>
           </div>
         )}
-
-        {isConnecting && messages.length === 0 && (
+        {isConnecting && (
           <div className="flex items-center justify-center h-full">
             <div className="flex flex-col items-center gap-3">
               <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -318,7 +353,6 @@ export default function LiveSession() {
             </div>
           </div>
         )}
-
         {messages.map((msg, i) => (
           <MessageBubble key={i} type={msg.type} text={msg.text} />
         ))}
@@ -347,7 +381,7 @@ export default function LiveSession() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </button>
-            <VoiceSelector currentVoice={settings.voice} onSelect={handleVoiceChange} />
+
             <button
               onClick={handleDisconnect}
               className="p-2 rounded-xl text-red-400 hover:text-red-300 hover:bg-slate-700/50 transition-all"

@@ -14,7 +14,7 @@ export default function MessageBubble({ type, text }: MessageBubbleProps) {
         </div>
         <div>
           <p className="text-xs text-blue-400 font-medium mb-1">AI</p>
-          <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">{text}</p>
+          <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap font-urdu">{text}</p>
         </div>
       </div>
     );
@@ -24,7 +24,7 @@ export default function MessageBubble({ type, text }: MessageBubbleProps) {
     <div className="flex justify-end max-w-[85%] ml-auto">
       <div className="bg-slate-800 rounded-2xl rounded-br-md px-4 py-2.5">
         <p className="text-xs text-blue-400 font-medium mb-0.5">You</p>
-        <p className="text-slate-200 text-sm leading-relaxed">{text}</p>
+        <p className="text-slate-200 text-sm leading-relaxed font-urdu">{text}</p>
       </div>
     </div>
   );
