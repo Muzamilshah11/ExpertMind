@@ -1,147 +1,177 @@
-# ExpertMind Project
+# ExpertMind
 
-ExpertMind is an advanced AI consulting platform designed to provide expert analysis and solutions across various domains. It leverages a multi-agent LangGraph architecture to orchestrate specialized AI agents (Business Analyst, Tech Architect, Legal Compliance, Healthcare Specialist, Finance Specialist) to process session summaries, generate structured insights, and propose comprehensive solutions. The platform features a real-time interactive frontend built with Next.js and a FastAPI backend with WebSocket capabilities.
+ExpertMind is an elite multimodal AI consultant featuring real-time voice, video, and screen sharing powered by **Gemini Live API**. It combines a Next.js (Turbopack) frontend with a FastAPI backend for intelligent consulting sessions.
 
 ## Features
 
--   **Multi-Agent Orchestration**: Utilizes LangGraph to dynamically delegate tasks to specialized AI agents.
--   **Real-time Interaction**: WebSocket-based communication for live sessions.
--   **Structured Analysis**: Agents produce structured JSON outputs for business, technical, legal, healthcare, and financial domains.
--   **Solution Merging**: Consolidates agent analyses into a single, comprehensive solution document.
--   **PDF Report Generation**: Generates detailed PDF reports of session outcomes.
--   **Interactive Frontend**: User-friendly interface for managing sessions and viewing reports.
+### 🎙 Real-Time Voice Chat
+- WebSocket-based low-latency audio streaming
+- 5 selectable AI voices: **Puck, Charon, Kore, Fenrir, Aoede**
+- Voice switching dropdown in the controls bar
+- Microphone mute/unmute via Three-Dot menu
+
+### 📷 Camera & Screen Sharing
+- Live camera preview with rounded floating overlay (top-right corner)
+- Screen sharing with live preview (same overlay)
+- Camera/Screen active indicator badges in TopBar
+- Real-time frame capture (1 FPS) sent to Gemini for visual analysis
+- Front/back camera support via `facingMode`
+
+### 💬 Session History (localStorage)
+- Conversations auto-saved in browser localStorage
+- Slide-in history drawer with search functionality
+- Auto-generated session titles from first user message
+- Delete individual sessions or start new chat
+
+### 🧠 Multi-Agent Orchestration
+- LangGraph-powered agent pipeline:
+  - Business Analyst, Tech Architect, Legal Compliance, Healthcare, Finance
+- Structured JSON analysis output
+- Automated solution merging across agents
+- PDF report generation (via WeasyPrint)
+
+### 🎨 Professional UI
+- Slate-blue dark theme (slate-900/800/700 palette)
+- Tailwind CSS with responsive layout
+- Geist font + Urdu Nastaliq font support
+- Scrollbar styling for chat area
 
 ## Project Structure
 
--   `backend/`: FastAPI application, LangGraph agents, database models, and services.
-    -   `backend/src/agents/`: LangGraph flow and agent definitions.
-    -   `backend/src/db.py`: Database connection and utility functions.
-    -   `backend/src/models.py`: SQLModel and Pydantic models for database and API.
-    -   `backend/src/services/pdf_generator.py`: PDF report generation logic.
-    -   `backend/tests/`: Unit and integration tests for the backend.
--   `frontend/`: Next.js application for the user interface.
-    -   `frontend/app/`: Next.js pages and layouts.
-    -   `frontend/components/`: React components, including `LiveSession.tsx`.
--   `.specify/`: Configuration and templates for project specifications and documentation.
--   `history/`: Stores prompt history records and architectural decision records.
--   `requirements.txt`: Python dependencies for the backend.
--   `package.json`: JavaScript dependencies for the frontend.
--   `run_backend.py`: Script to start the FastAPI backend.
+```
+ExpertMind/
+├── backend/
+│   ├── main.py                 # FastAPI app, WebSocket endpoint, REST APIs
+│   ├── gemini_live.py          # Gemini Live API session manager
+│   ├── run.py                  # Backend entry point
+│   ├── alembic/                # Database migrations
+│   ├── src/
+│   │   ├── agents/             # LangGraph agent definitions & flow
+│   │   ├── services/           # PDF generator, etc.
+│   │   ├── models.py           # SQLModel & Pydantic models
+│   │   └── db.py               # Database connection pool
+│   └── tests/                  # Backend tests
+├── frontend/
+│   ├── app/
+│   │   ├── page.tsx            # Landing page
+│   │   ├── layout.tsx          # Root layout with fonts
+│   │   ├── session/page.tsx    # Session route (SSR)
+│   │   └── globals.css         # Global styles, Tailwind import
+│   ├── components/
+│   │   ├── LiveSession.tsx     # Main orchestrator component
+│   │   ├── TopBar.tsx          # Header with hamburger, title, indicators
+│   │   ├── BottomInput.tsx     # Text input, mic, attach, three-dots
+│   │   ├── MessageBubble.tsx   # User/AI message rendering
+│   │   ├── SessionHistory.tsx  # Slide-in drawer with search
+│   │   ├── VoiceSelector.tsx   # Voice dropdown selector
+│   │   └── ThreeDotMenu.tsx    # Camera/screen/mic popover menu
+│   └── lib/
+│       ├── gemini-client.ts    # WebSocket client with health checks
+│       ├── media-handler.ts    # Audio/video/screen capture
+│       └── session-storage.ts  # localStorage CRUD for sessions
+├── .env                        # Environment variables
+├── .gitignore
+├── requirements.txt            # Python dependencies
+├── package.json                # Root package.json
+└── run_backend.py              # Backend startup script
+```
 
-## Setup Instructions
-
-Follow these steps to set up the project locally:
+## Setup
 
 ### Prerequisites
+- Python 3.10+
+- Node.js 18+ (LTS)
+- PostgreSQL (for agent pipeline features)
+- Gemini API key
 
--   Python 3.10+
--   Node.js (LTS recommended)
--   npm (comes with Node.js)
--   Git
-
-### 1. Clone the Repository
+### 1. Clone & Install
 
 ```bash
-git clone <your-repo-url>
+git clone <repo-url>
 cd ExpertMind
-```
 
-### 2. Backend Setup
-
-```bash
-# Create a Python virtual environment (recommended)
+# Backend
 python -m venv venv
-# Activate the virtual environment
-# On Windows:
-.\venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-
-# Install Python dependencies
+.\venv\Scripts\activate    # Windows
 pip install -r requirements.txt
+
+# Frontend
+cd frontend
+npm install
+cd ..
 ```
 
-#### Database Configuration
+### 2. Environment Variables
 
-This project uses `asyncpg` for PostgreSQL. You need to set the `DATABASE_URL` environment variable.
-Create a `.env` file in the root directory of the project with your PostgreSQL connection string:
+Create `.env` in the project root:
 
 ```
-DATABASE_URL="postgresql://user:password@host:port/database_name"
-GEMINI_API_KEY="YOUR_GEMINI_API_KEY" # Required for AI agent functionality
+GEMINI_API_KEY=your_key_here
+MODEL=gemini-2.5-flash
+LIVE_MODEL=gemini-3.1-flash-live-preview
+DATABASE_URL=postgresql://user:pass@host:port/db
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 ```
-Replace `user`, `password`, `host`, `port`, and `database_name` with your PostgreSQL credentials.
-A `GEMINI_API_KEY` is also required for the AI agents to function.
 
-#### Database Migrations
+### 3. Database Migrations
 
-Apply database migrations using Alembic:
 ```bash
-# Navigate to the backend directory
 cd backend
 alembic upgrade head
 cd ..
 ```
 
-### 3. Frontend Setup
+## How to Run
+
+### Start Backend
 
 ```bash
-# Navigate to the frontend directory
+.\venv\Scripts\python run_backend.py
+# → http://127.0.0.1:8000
+```
+
+### Start Frontend
+
+```bash
 cd frontend
-# Install Node.js dependencies
-npm install
-# Go back to the root directory
-cd ..
-```
-
-## How to Run the Project
-
-### 1. Start the Backend Server
-
-Open a terminal in the project root directory and run:
-
-```bash
-.\venv\Scripts\python run_backend.py # On Windows
-# Or on macOS/Linux (after activating venv):
-python run_backend.py
-```
-The backend server will start on `http://127.0.0.1:8000`.
-
-### 2. Start the Frontend Development Server
-
-Open a **separate** terminal, navigate to the `frontend` directory (`cd frontend`), and run:
-
-```bash
 npm run dev
-```
-The frontend application will typically open in your browser at `http://localhost:3000`. If this port is in use, it will use another available port (e.g., `http://localhost:3002`). Check your terminal for the exact URL.
-
-## How to Run Tests
-
-### Backend Tests
-
-Run all backend unit and integration tests from the project root directory:
-
-```bash
-.\venv\Scripts\python -m pytest backend/tests # On Windows
-# Or on macOS/Linux (after activating venv):
-python -m pytest backend/tests
+# → http://localhost:3000
 ```
 
-### Frontend Tests
+## API Endpoints
 
-Run all frontend tests from the `frontend` directory:
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Health check |
+| `WebSocket` | `/ws` | Real-time session with Gemini Live |
+| `POST` | `/api/summarize` | Summarize session transcript |
+| `POST` | `/api/orchestrate` | Run multi-agent pipeline |
+| `POST` | `/api/generate-pdf` | Generate PDF report |
 
-```bash
-cd frontend
-npm run test
-cd ..
-```
+## Session Flow
 
-## Known Issues & Considerations
+1. User opens `/session` page
+2. Clicks **Connect** → frontend health-checks backend → WebSocket connects
+3. Frontend sends settings (voice, system prompt) → backend starts Gemini Live session
+4. Real-time bidirectional audio streaming begins
+5. User can toggle camera/screen share to send visual frames
+6. Conversations auto-save to browser localStorage
+7. Voice can be changed mid-session (triggers session restart)
 
--   **WeasyPrint System Dependencies**: PDF generation functionality relies on `WeasyPrint`, which requires external system libraries (like Pango, Cairo, GDK-Pixbuf). If PDF generation fails, you may need to install these dependencies on your operating system. For Windows, refer to the `WeasyPrint` documentation for installation instructions.
--   **API Keys**: Ensure your `GEMINI_API_KEY` is correctly configured in your `.env` file for AI agent functionality.
+## Environment Variables
 
----
-**Note**: This `README.md` was generated by Gemini CLI based on the project structure and observed behavior.
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `GEMINI_API_KEY` | Yes | — | Google Gemini API key |
+| `MODEL` | No | `gemini-2.5-flash` | Text model for summarization |
+| `LIVE_MODEL` | No | `gemini-3.1-flash-live-preview` | Live model for real-time sessions |
+| `DATABASE_URL` | No* | — | PostgreSQL connection (required for agent pipeline) |
+| `NEXT_PUBLIC_BACKEND_URL` | No | `http://localhost:8000` | Backend URL for frontend |
+
+*Optional if only using real-time chat without agent pipeline.
+
+## Known Issues
+
+- **WeasyPrint**: PDF generation requires system libraries (Pango, Cairo, GDK-Pixbuf). See [WeasyPrint docs](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html) for installation.
+- **API Key**: Valid `GEMINI_API_KEY` required for all AI functionality.
+- **WebSocket**: Backend must be running on `localhost:8000`; frontend shows error if unreachable.
