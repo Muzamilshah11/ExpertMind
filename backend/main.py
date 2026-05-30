@@ -8,6 +8,7 @@ import sys
 import tempfile
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status, WebSocket, WebSocketDisconnect, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import create_engine, Session, SQLModel, select
@@ -63,6 +64,15 @@ PDF_DIR = os.path.join(tempfile.gettempdir(), "expertmind_reports")
 os.makedirs(PDF_DIR, exist_ok=True)
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.mount("/reports", StaticFiles(directory=PDF_DIR), name="reports")
 
 @app.middleware("http")
@@ -193,7 +203,7 @@ async def websocket_endpoint(websocket: WebSocket):
     voice_name = "Puck"
     system_prompt = None
     try:
-        data = await websocket.receive()
+        data = await asyncio.wait_for(websocket.receive(), timeout=5.0)
         while "text" in data:
             msg = json.loads(data["text"])
             if msg.get("type") == "settings":
@@ -201,9 +211,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 voice_name = sd.get("voice", voice_name)
                 system_prompt = sd.get("systemPrompt", system_prompt)
                 break
-            data = await websocket.receive()
-    except WebSocketDisconnect:
-        return
+            data = await asyncio.wait_for(websocket.receive(), timeout=5.0)
+    except (asyncio.TimeoutError, WebSocketDisconnect):
+        pass
 
     while True:
         audio_queue = asyncio.Queue()
