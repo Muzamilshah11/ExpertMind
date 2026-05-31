@@ -65,6 +65,8 @@ export default function LiveSession({ autoConnect }: LiveSessionProps) {
   });
 
   const activeSessionIdRef = useRef(activeSessionId);
+  const connectingRef = useRef(false);
+  const autoConnectHandled = useRef(false);
 
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
@@ -83,7 +85,8 @@ export default function LiveSession({ autoConnect }: LiveSessionProps) {
   }, []);
 
   useEffect(() => {
-    if (autoConnect && !isConnected && !isConnecting) {
+    if (autoConnect && !autoConnectHandled.current) {
+      autoConnectHandled.current = true;
       handleConnect();
     }
   }, [autoConnect]);
@@ -135,6 +138,8 @@ export default function LiveSession({ autoConnect }: LiveSessionProps) {
   }, []);
 
   const handleConnect = async () => {
+    if (connectingRef.current) return;
+    connectingRef.current = true;
     setConnectionError('');
     setIsConnecting(true);
     try {
@@ -153,6 +158,7 @@ export default function LiveSession({ autoConnect }: LiveSessionProps) {
     } catch {
       setConnectionError('Cannot connect to backend. Make sure the server is running on http://localhost:8000');
     } finally {
+      connectingRef.current = false;
       setIsConnecting(false);
     }
   };
