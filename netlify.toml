@@ -1,0 +1,38 @@
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "frontend/.next"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/*"
+  to = ".netlify/functions/:splat"
+  status = 200
+
+# Redirect API calls to backend
+[[redirects]]
+  from = "/ws"
+  to = "https://expertmind-backend.onrender.com/ws"
+  status = 200
+
+[[redirects]]
+  from = "/api/summarize"
+  to = "https://expertmind-backend.onrender.com/api/summarize"
+  status = 200
+
+[[redirects]]
+  from = "/api/orchestrate"
+  to = "https://expertmind-backend.onrender.com/api/orchestrate"
+  status = 200
+
+[[redirects]]
+  from = "/api/generate-pdf"
+  to = "https://expertmind-backend.onrender.com/api/generate-pdf"
+  status = 200
+
+[[redirects]]
+  from = "/health"
+  to = "https://expertmind-backend.onrender.com/health"
+  status = 200
